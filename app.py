@@ -331,7 +331,6 @@ def validate_road_surface(image_bgr: np.ndarray) -> tuple[bool, str]:
     Domain Guardrail: Distinguishes genuine outdoor road/asphalt surfaces from
     non-road images (indoor floors, tiles, selfies, documents, walls, etc.).
     """
-    h, w = image_bgr.shape[:2]
     resized = cv2.resize(image_bgr, (320, 320))
     hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
@@ -349,7 +348,7 @@ def validate_road_surface(image_bgr: np.ndarray) -> tuple[bool, str]:
     # 2. Micro-texture grain (Laplacian variance): smooth tiles/walls/screens have very low grain
     lap_var = float(cv2.Laplacian(road_roi_gray, cv2.CV_64F).var())
 
-    # 3. Warm indoor beige/skin/wood dominance check (Hue 8-28 with noticeable saturation)
+    # 3. Warm indoor beige/skin/wood dominance check
     hue = road_roi_hsv[:, :, 0]
     warm_indoor_ratio = float(np.mean((hue >= 8) & (hue <= 28) & (sat >= 42) & (val >= 95)))
 
@@ -358,9 +357,8 @@ def validate_road_surface(image_bgr: np.ndarray) -> tuple[bool, str]:
     lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=90, minLineLength=95, maxLineGap=10)
     hv_lines = 0
     if lines is not None:
-        for line in lines:
-            x1, y1, x2, y2 = line[0]
-            angle = abs(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
+        for x1, y1, x2, y2 in lines.reshape(-1, 4):
+            angle = abs(np.degrees(np.arctan2(int(y2) - int(y1), int(x2) - int(x1))))
             if angle < 4 or angle > 176 or (86 < angle < 94):
                 hv_lines += 1
 
