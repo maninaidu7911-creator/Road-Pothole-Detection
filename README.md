@@ -1,4 +1,4 @@
-# 🛣️ RoadGuard AI — Automated Road Pothole Detection System
+# 🛣️ RoadGuard AI — Automated Road Holes Detection System
 
 An end-to-end Deep Learning computer vision web application built with **YOLO26**, **OpenCV**, and **Streamlit** to detect road potholes, classify damage severity, and compute automated repair priority scores.
 
@@ -7,7 +7,7 @@ An end-to-end Deep Learning computer vision web application built with **YOLO26*
 ---
 
 ### ✨ Key Features
-* **Real-Time Pothole Detection:** Custom-trained `YOLO26n` object detection model trained on annotated road surface imagery.
+* **Real-Time Holes Detection:** Custom-trained `YOLO26n` object detection model trained on annotated road surface imagery.
 * **Automated Severity Grading:** Classifies each detected pothole as **Low**, **Moderate**, or **Severe** based on relative bounding-box frame coverage.
 * **Road Hazard Scoring (0–10):** Aggregates pothole density and surface area coverage into an actionable repair priority (`Safe`, `Low Priority`, `Moderate Priority`, `Critical Priority`).
 * **EXIF GPS Geotag Extraction:** Extracts embedded latitude/longitude metadata from geotagged photos and plots coordinates on an interactive map.
