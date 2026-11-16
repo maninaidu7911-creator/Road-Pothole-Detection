@@ -309,6 +309,16 @@ def load_model(model_path: str):
     return YOLO(model_path)
 
 
+def enhance_road_contrast(image_bgr: np.ndarray) -> np.ndarray:
+    """Enhances asphalt and water-filled puddle edge contrast for accurate YOLO detection."""
+    lab = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2LAB)
+    l_channel, a_channel, b_channel = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=2.2, tileGridSize=(8, 8))
+    l_enhanced = clahe.apply(l_channel)
+    merged = cv2.merge((l_enhanced, a_channel, b_channel))
+    return cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
+
+
 MODEL_PATH = "models/best.pt"
 if not os.path.exists(MODEL_PATH):
     st.error(f"Model file not found at `{MODEL_PATH}`. Place your trained `best.pt` inside `models/`.")
@@ -317,17 +327,6 @@ if not os.path.exists(MODEL_PATH):
 model = load_model(MODEL_PATH)
 
 with st.sidebar:
-    st.markdown("### 🎛️ Inspection Settings")
-    conf_threshold = st.slider(
-        "Detection Sensitivity",
-        min_value=0.10,
-        max_value=0.90,
-        value=0.25,
-        step=0.05,
-        help="Lower values catch smaller surface cracks; higher values show only major potholes."
-    )
-    celebrate_mode = st.toggle("✨ Visual Celebrations", value=True)
-    st.divider()
     st.markdown("### 🖼️ Sample Road Photos")
     sample_dir = "sample_images"
     sample_files = (
@@ -335,6 +334,8 @@ with st.sidebar:
         if os.path.exists(sample_dir) else []
     )
     selected_sample = st.selectbox("Try a demo road image:", ["None"] + sample_files)
+    st.divider()
+    celebrate_mode = st.toggle("✨ Visual Celebrations", value=True)
 
 uploaded_file = st.file_uploader(
     "📸 Upload a road photo to inspect (.jpg, .jpeg, .png)",
@@ -352,13 +353,18 @@ if image_source is not None:
     img_np = np.array(pil_rgb)
     img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-    progress_bar = st.progress(0, text="🔍 Scanning road surface...")
-    for pct in range(0, 85, 25):
-        time.sleep(0.03)
-        progress_bar.progress(pct, text="🧠 Detecting potholes and measuring damage area...")
+    progress_bar = st.progress(0, text="🔍 Enhancing road surface contrast...")
+    enhanced_bgr = enhance_road_contrast(img_bgr)
+    progress_bar.progress(45, text="🧠 Running multi-scale YOLO26 pothole inspection...")
 
     t0 = time.time()
-    results = model.predict(source=img_bgr, conf=conf_threshold, verbose=False)
+    results = model.predict(
+        source=enhanced_bgr,
+        conf=0.14,
+        iou=0.45,
+        augment=True,
+        verbose=False
+    )
     report = analyze_detections(img_bgr, results)
     elapsed_sec = round(time.time() - t0, 2)
 
