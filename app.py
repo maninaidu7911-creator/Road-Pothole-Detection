@@ -245,13 +245,21 @@ html, body, [class*="css"] {
 .custom-footer {
     text-align: center;
     padding: 2rem 0 1rem 0;
-    color: #64748b;
-    font-size: 0.88rem;
+    color: #94a3b8;
+    font-size: 0.92rem;
 }
 
-.custom-footer span {
+.custom-footer a {
     color: #38bdf8;
-    font-weight: 600;
+    font-weight: 700;
+    text-decoration: none;
+    border-bottom: 1px dashed #38bdf8;
+    transition: color 0.2s ease;
+}
+
+.custom-footer a:hover {
+    color: #a855f7;
+    border-bottom-color: #a855f7;
 }
 
 @media (max-width: 900px) {
@@ -451,6 +459,6 @@ else:
 
 st.markdown("""
 <div class="custom-footer">
-    Built by <span>Manikanta Dandabattula</span> &nbsp;|&nbsp; Computer Engineering & AI &nbsp;|&nbsp; Powered by YOLO26 & Computer Vision
+    Designed by <a href="https://www.linkedin.com/in/YOUR-LINKEDIN-USERNAME" target="_blank">Manikanta</a>
 </div>
 """, unsafe_allow_html=True)
