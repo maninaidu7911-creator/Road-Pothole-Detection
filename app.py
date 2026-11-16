@@ -213,6 +213,15 @@ html, body, [class*="css"] {
     margin-top: 0.3rem;
 }
 
+.reject-box {
+    background: linear-gradient(135deg, rgba(127, 29, 29, 0.45), rgba(15, 23, 42, 0.92));
+    border: 1.5px solid rgba(244, 63, 94, 0.55);
+    border-radius: 18px;
+    padding: 1.8rem 2rem;
+    margin: 1.2rem 0;
+    animation: fadeSlideUp 0.5s ease-out;
+}
+
 .scanner-box {
     position: relative;
     background: linear-gradient(180deg, rgba(15,23,42,0.82), rgba(30,41,59,0.52));
@@ -273,7 +282,7 @@ html, body, [class*="css"] {
 st.markdown("""
 <div class="ticker-wrap">
     <div class="ticker-text">
-        ⚡ REAL-TIME AI ROAD INSPECTION &nbsp;•&nbsp; 🛣️ AUTOMATIC POTHOLE DETECTION & SEVERITY GRADING &nbsp;•&nbsp; 🚨 INSTANT ROAD SAFETY SCORING (0–10) &nbsp;•&nbsp; 📍 GPS LOCATION MAPPING &nbsp;•&nbsp; 🚀 BUILT FOR SAFER COMMUTES & SMART CITIES
+        ⚡ REAL-TIME AI ROAD INSPECTION &nbsp;•&nbsp; 🛡️ SMART SCENE VALIDATION &nbsp;•&nbsp; 🛣️ AUTOMATIC POTHOLE DETECTION & SEVERITY GRADING &nbsp;•&nbsp; 🚨 INSTANT ROAD SAFETY SCORING (0–10) &nbsp;•&nbsp; 📍 GPS LOCATION MAPPING
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -285,8 +294,8 @@ st.markdown("""
             <div class="hero-badge">✨ AI-Powered Road Safety & Infrastructure Tool</div>
             <h1 class="hero-title">RoadWatchX AI</h1>
             <p class="hero-sub">
-                Turn any road photo into an instant safety report. RoadWatchX AI spots dangerous potholes, 
-                rates road damage severity, and helps maintenance teams prioritize urgent repairs in seconds.
+                Turn any road photo into an instant safety report. RoadWatchX AI validates the road surface, 
+                spots dangerous potholes, and generates municipal repair priority insights in seconds.
             </p>
         </div>
         <div class="floating-icon">🛣️</div>
@@ -297,15 +306,15 @@ st.markdown("""
 st.markdown("""
 <div class="feature-grid">
     <div class="f-card">
-        <h4>1️⃣ Upload Any Road Photo</h4>
-        <p>Drop a street or highway photo below—or pick a ready-made sample road image to test immediately.</p>
+        <h4>1️⃣ Smart Scene Guardrail</h4>
+        <p>Automatically verifies that the uploaded image is a real outdoor road surface before running AI inference.</p>
     </div>
     <div class="f-card">
         <h4>2️⃣ AI Spots & Rates Damage</h4>
         <p>Our custom-trained YOLO26 vision model highlights every pothole and labels it Low, Moderate, or Severe.</p>
     </div>
     <div class="f-card">
-        <h4>3️⃣ Get Actionable Repair Report</h4>
+        <h4>3️⃣ Actionable Repair Report</h4>
         <p>View the 0–10 road danger score, check GPS map coordinates, and download the annotated inspection image.</p>
     </div>
 </div>
@@ -317,11 +326,64 @@ def load_model(model_path: str):
     return YOLO(model_path)
 
 
+def validate_road_surface(image_bgr: np.ndarray) -> tuple[bool, str]:
+    """
+    Domain Guardrail: Distinguishes genuine outdoor road/asphalt surfaces from
+    non-road images (indoor floors, tiles, selfies, documents, walls, etc.).
+    """
+    h, w = image_bgr.shape[:2]
+    resized = cv2.resize(image_bgr, (320, 320))
+    hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)
+    gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+
+    # Focus on lower 65% of frame where road surface lies in street/dashcam shots
+    road_roi_hsv = hsv[int(320 * 0.35):, :]
+    road_roi_gray = gray[int(320 * 0.35):, :]
+
+    sat = road_roi_hsv[:, :, 1]
+    val = road_roi_hsv[:, :, 2]
+
+    # 1. Asphalt/concrete/gravel is predominantly low-to-moderate saturation
+    low_sat_ratio = float(np.mean(sat < 75))
+
+    # 2. Micro-texture grain (Laplacian variance): smooth tiles/walls/screens have very low grain
+    lap_var = float(cv2.Laplacian(road_roi_gray, cv2.CV_64F).var())
+
+    # 3. Warm indoor beige/skin/wood dominance check (Hue 8-28 with noticeable saturation)
+    hue = road_roi_hsv[:, :, 0]
+    warm_indoor_ratio = float(np.mean((hue >= 8) & (hue <= 28) & (sat >= 42) & (val >= 95)))
+
+    # 4. Indoor ceiling/furniture straight horizontal/vertical line dominance
+    edges = cv2.Canny(gray, 60, 160)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=90, minLineLength=95, maxLineGap=10)
+    hv_lines = 0
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            angle = abs(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
+            if angle < 4 or angle > 176 or (86 < angle < 94):
+                hv_lines += 1
+
+    if warm_indoor_ratio > 0.42:
+        return False, "Detected indoor flooring, skin tones, or warm non-road surfaces instead of asphalt or concrete."
+
+    if lap_var < 55.0:
+        return False, "Surface texture is too smooth (looks like tiles, a wall, sky, or a digital screen rather than a road)."
+
+    if low_sat_ratio < 0.42:
+        return False, "Color profile does not match outdoor road pavement (high non-asphalt color saturation detected)."
+
+    if hv_lines >= 14 and lap_var < 220.0:
+        return False, "Detected architectural indoor grid/furniture lines rather than an open roadway."
+
+    return True, "Valid road surface confirmed."
+
+
 def enhance_road_contrast(image_bgr: np.ndarray) -> np.ndarray:
-    """Enhances asphalt and water-filled puddle edge contrast for accurate YOLO detection."""
+    """Enhances low-contrast wet/puddle road rims without distorting dry asphalt."""
     lab = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2LAB)
     l_channel, a_channel, b_channel = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=2.2, tileGridSize=(8, 8))
+    clahe = cv2.createCLAHE(clipLimit=1.8, tileGridSize=(8, 8))
     l_enhanced = clahe.apply(l_channel)
     merged = cv2.merge((l_enhanced, a_channel, b_channel))
     return cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
@@ -361,89 +423,121 @@ if image_source is not None:
     img_np = np.array(pil_rgb)
     img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-    progress_bar = st.progress(0, text="🔍 Enhancing road surface contrast...")
-    enhanced_bgr = enhance_road_contrast(img_bgr)
-    progress_bar.progress(45, text="🧠 Running multi-scale YOLO26 pothole inspection...")
+    progress_bar = st.progress(0, text="🛡️ Validating road surface domain...")
+    is_road, validation_msg = validate_road_surface(img_bgr)
 
-    t0 = time.time()
-    results = model.predict(
-        source=enhanced_bgr,
-        conf=0.14,
-        iou=0.45,
-        augment=True,
-        verbose=False
-    )
-    report = analyze_detections(img_bgr, results)
-    elapsed_sec = round(time.time() - t0, 2)
+    if not is_road:
+        progress_bar.empty()
+        st.markdown(f"""
+        <div class="reject-box">
+            <h3 style="margin: 0 0 0.45rem 0; color: #fda4af;">🚫 Non-Road Image Rejected</h3>
+            <p style="margin: 0 0 0.6rem 0; color: #f8fafc; font-size: 1rem;">
+                <b>Reason:</b> {validation_msg}
+            </p>
+            <p style="margin: 0; color: #cbd5e1; font-size: 0.9rem;">
+                RoadWatchX AI only analyzes genuine outdoor roads, streets, or highways to prevent false detections. 
+                Please upload a clear road surface photo to generate an inspection report.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    progress_bar.progress(100, text=f"✅ Inspection complete in {elapsed_sec}s!")
-    time.sleep(0.2)
-    progress_bar.empty()
-
-    if celebrate_mode:
-        if report["count"] == 0:
-            st.balloons()
-        else:
-            st.toast(f"Inspection Complete: {report['count']} pothole(s) found!", icon="🛣️")
-
-    score = report["hazard_score"]
-    if score >= 7.0:
-        badge_color = "#f43f5e"
-    elif score >= 3.5:
-        badge_color = "#f59e0b"
-    elif report["count"] > 0:
-        badge_color = "#38bdf8"
+        col_prev, _ = st.columns([1, 1])
+        with col_prev:
+            st.image(pil_rgb, caption="Uploaded Image (Not a Valid Road Scene)", use_container_width=True)
     else:
-        badge_color = "#10b981"
+        progress_bar.progress(45, text="🧠 Running YOLO26 road pothole inspection...")
+        t0 = time.time()
 
-    cards_html = (
-        '<div class="metric-grid">'
-        f'<div class="metric-glass"><div class="metric-label">Potholes Found</div>'
-        f'<div class="metric-val" style="color:#38bdf8;">{report["count"]}</div>'
-        f'<div class="metric-hint">Total craters detected</div></div>'
-        f'<div class="metric-glass"><div class="metric-label">Danger Score</div>'
-        f'<div class="metric-val" style="color:{badge_color};">{report["hazard_score"]} <span style="font-size:1rem;color:#94a3b8;">/ 10</span></div>'
-        f'<div class="metric-hint">Based on count &amp; size</div></div>'
-        f'<div class="metric-glass"><div class="metric-label">Repair Urgency</div>'
-        f'<div class="metric-val" style="font-size:1.35rem;padding-top:0.35rem;color:{badge_color};">{report["overall_status"]}</div>'
-        f'<div class="metric-hint">Maintenance priority</div></div>'
-        f'<div class="metric-glass"><div class="metric-label">Scan Time</div>'
-        f'<div class="metric-val" style="color:#a855f7;">{elapsed_sec} <span style="font-size:1rem;color:#94a3b8;">sec</span></div>'
-        f'<div class="metric-hint">AI processing speed</div></div>'
-        '</div>'
-    )
-    st.markdown(cards_html, unsafe_allow_html=True)
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("#### 📷 Before: Original Road Photo")
-        st.image(pil_rgb, use_container_width=True)
-
-    with col2:
-        st.markdown("#### 🎯 After: AI Pothole Detection")
-        st.image(report["annotated_image"], use_container_width=True)
-
-    if report["count"] > 0:
-        st.markdown("### 📋 Individual Pothole Breakdown")
-        df = pd.DataFrame(report["detections"])
-        st.dataframe(df, use_container_width=True, hide_index=True)
-
-        result_pil = Image.fromarray(report["annotated_image"])
-        buf = BytesIO()
-        result_pil.save(buf, format="PNG")
-        st.download_button(
-            label="⬇️ Download Annotated Inspection Report",
-            data=buf.getvalue(),
-            file_name="roadwatchx_inspection.png",
-            mime="image/png"
+        # Pass 1: High-precision inference on natural road image
+        results = model.predict(
+            source=img_bgr,
+            conf=0.22,
+            iou=0.45,
+            verbose=False
         )
-    else:
-        st.success("🎉 Smooth road ahead! No potholes were detected in this image.")
 
-    gps = extract_gps_coordinates(image_source)
-    if gps:
-        st.markdown("### 📍 Exact GPS Road Location")
-        st.map(pd.DataFrame([gps]))
+        # Pass 2: Adaptive wet/low-contrast road fallback if Pass 1 finds 0 potholes
+        if results[0].boxes is None or len(results[0].boxes) == 0:
+            enhanced_bgr = enhance_road_contrast(img_bgr)
+            results = model.predict(
+                source=enhanced_bgr,
+                conf=0.16,
+                iou=0.45,
+                augment=True,
+                verbose=False
+            )
+
+        report = analyze_detections(img_bgr, results)
+        elapsed_sec = round(time.time() - t0, 2)
+
+        progress_bar.progress(100, text=f"✅ Inspection complete in {elapsed_sec}s!")
+        time.sleep(0.2)
+        progress_bar.empty()
+
+        if celebrate_mode:
+            if report["count"] == 0:
+                st.balloons()
+            else:
+                st.toast(f"Inspection Complete: {report['count']} pothole(s) found!", icon="🛣️")
+
+        score = report["hazard_score"]
+        if score >= 7.0:
+            badge_color = "#f43f5e"
+        elif score >= 3.5:
+            badge_color = "#f59e0b"
+        elif report["count"] > 0:
+            badge_color = "#38bdf8"
+        else:
+            badge_color = "#10b981"
+
+        cards_html = (
+            '<div class="metric-grid">'
+            f'<div class="metric-glass"><div class="metric-label">Potholes Found</div>'
+            f'<div class="metric-val" style="color:#38bdf8;">{report["count"]}</div>'
+            f'<div class="metric-hint">Total craters detected</div></div>'
+            f'<div class="metric-glass"><div class="metric-label">Danger Score</div>'
+            f'<div class="metric-val" style="color:{badge_color};">{report["hazard_score"]} <span style="font-size:1rem;color:#94a3b8;">/ 10</span></div>'
+            f'<div class="metric-hint">Based on count &amp; size</div></div>'
+            f'<div class="metric-glass"><div class="metric-label">Repair Urgency</div>'
+            f'<div class="metric-val" style="font-size:1.35rem;padding-top:0.35rem;color:{badge_color};">{report["overall_status"]}</div>'
+            f'<div class="metric-hint">Maintenance priority</div></div>'
+            f'<div class="metric-glass"><div class="metric-label">Scan Time</div>'
+            f'<div class="metric-val" style="color:#a855f7;">{elapsed_sec} <span style="font-size:1rem;color:#94a3b8;">sec</span></div>'
+            f'<div class="metric-hint">AI processing speed</div></div>'
+            '</div>'
+        )
+        st.markdown(cards_html, unsafe_allow_html=True)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### 📷 Before: Original Road Photo")
+            st.image(pil_rgb, use_container_width=True)
+
+        with col2:
+            st.markdown("#### 🎯 After: AI Pothole Detection")
+            st.image(report["annotated_image"], use_container_width=True)
+
+        if report["count"] > 0:
+            st.markdown("### 📋 Individual Pothole Breakdown")
+            df = pd.DataFrame(report["detections"])
+            st.dataframe(df, use_container_width=True, hide_index=True)
+
+            result_pil = Image.fromarray(report["annotated_image"])
+            buf = BytesIO()
+            result_pil.save(buf, format="PNG")
+            st.download_button(
+                label="⬇️ Download Annotated Inspection Report",
+                data=buf.getvalue(),
+                file_name="roadwatchx_inspection.png",
+                mime="image/png"
+            )
+        else:
+            st.success("🎉 Smooth road ahead! No potholes were detected on this road surface.")
+
+        gps = extract_gps_coordinates(image_source)
+        if gps:
+            st.markdown("### 📍 Exact GPS Road Location")
+            st.map(pd.DataFrame([gps]))
 
 else:
     st.markdown("""
@@ -452,7 +546,7 @@ else:
         <div style="font-size: 2.5rem; margin-bottom: 0.4rem;">📡</div>
         <h3 style="margin: 0 0 0.4rem 0; color: #f1f5f9;">Ready to Inspect Any Road</h3>
         <p style="margin: 0; color: #94a3b8; font-size: 0.95rem;">
-            Upload a road image above — or open the top-left arrow <b>( &gt; )</b> to test a built-in sample photo!
+            Upload an outdoor road photo above — or open the top-left arrow <b>( &gt; )</b> to test a built-in sample photo!
         </p>
     </div>
     """, unsafe_allow_html=True)
