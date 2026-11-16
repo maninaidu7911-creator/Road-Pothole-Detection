@@ -34,6 +34,12 @@ html, body, [class*="css"] {
     100% { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes shakePop {
+    0% { transform: scale(0.95); opacity: 0; }
+    50% { transform: scale(1.01); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
 @keyframes gradientFlow {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
@@ -213,13 +219,28 @@ html, body, [class*="css"] {
     margin-top: 0.3rem;
 }
 
-.reject-box {
-    background: linear-gradient(135deg, rgba(127, 29, 29, 0.45), rgba(15, 23, 42, 0.92));
-    border: 1.5px solid rgba(244, 63, 94, 0.55);
-    border-radius: 18px;
-    padding: 1.8rem 2rem;
-    margin: 1.2rem 0;
-    animation: fadeSlideUp 0.5s ease-out;
+.reject-popup {
+    background: linear-gradient(135deg, rgba(159, 18, 57, 0.42), rgba(15, 23, 42, 0.95));
+    border: 2px solid #f43f5e;
+    border-radius: 20px;
+    padding: 2rem 2.2rem;
+    margin: 1.4rem 0;
+    box-shadow: 0 16px 40px rgba(244, 63, 94, 0.25);
+    animation: shakePop 0.45s ease-out;
+}
+
+.reject-badge {
+    display: inline-block;
+    background: rgba(244, 63, 94, 0.2);
+    border: 1px solid #f43f5e;
+    color: #fda4af;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin-bottom: 0.7rem;
 }
 
 .scanner-box {
@@ -328,12 +349,24 @@ def load_model(model_path: str):
 
 def validate_road_surface(image_bgr: np.ndarray) -> tuple[bool, str]:
     """
-    Domain Guardrail: Distinguishes genuine outdoor road/asphalt surfaces from
-    non-road images (indoor floors, tiles, selfies, documents, walls, etc.).
+    Strict Domain Guardrail: Rejects screenshots, documents, UI captures, indoor floors,
+    tiles, faces, and non-road images so only genuine outdoor road photos are inspected.
     """
     resized = cv2.resize(image_bgr, (320, 320))
     hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)
     gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+
+    # 1. Detect Screenshots / Documents / UI Cards (large flat uniform pixel blocks)
+    # Real outdoor asphalt has natural granular variation; UI screenshots have huge blocks of exact identical pixels.
+    gx = np.abs(np.diff(gray.astype(np.int16), axis=1))
+    gy = np.abs(np.diff(gray.astype(np.int16), axis=0))
+    exact_flat_ratio = float((np.mean(gx == 0) + np.mean(gy == 0)) / 2.0)
+
+    # Pure white / near-white paper or UI container dominance
+    pure_white_ratio = float(np.mean((hsv[:, :, 1] < 18) & (hsv[:, :, 2] > 238)))
+
+    if exact_flat_ratio > 0.36 or pure_white_ratio > 0.32:
+        return False, "This appears to be a screenshot, document, or graphic rather than a real camera photo of a road."
 
     # Focus on lower 65% of frame where road surface lies in street/dashcam shots
     road_roi_hsv = hsv[int(320 * 0.35):, :]
@@ -341,38 +374,38 @@ def validate_road_surface(image_bgr: np.ndarray) -> tuple[bool, str]:
 
     sat = road_roi_hsv[:, :, 1]
     val = road_roi_hsv[:, :, 2]
+    hue = road_roi_hsv[:, :, 0]
 
-    # 1. Asphalt/concrete/gravel is predominantly low-to-moderate saturation
+    # 2. Asphalt/concrete/gravel is predominantly low-to-moderate saturation
     low_sat_ratio = float(np.mean(sat < 75))
 
-    # 2. Micro-texture grain (Laplacian variance): smooth tiles/walls/screens have very low grain
+    # 3. Micro-texture grain (Laplacian variance): smooth tiles/walls/screens have very low grain
     lap_var = float(cv2.Laplacian(road_roi_gray, cv2.CV_64F).var())
 
-    # 3. Warm indoor beige/skin/wood dominance check
-    hue = road_roi_hsv[:, :, 0]
+    # 4. Warm indoor beige/skin/wood dominance check
     warm_indoor_ratio = float(np.mean((hue >= 8) & (hue <= 28) & (sat >= 42) & (val >= 95)))
 
-    # 4. Indoor ceiling/furniture straight horizontal/vertical line dominance
+    # 5. Straight horizontal/vertical box/border line dominance (UI frames, rooms, furniture)
     edges = cv2.Canny(gray, 60, 160)
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=90, minLineLength=95, maxLineGap=10)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=85, minLineLength=90, maxLineGap=8)
     hv_lines = 0
     if lines is not None:
         for x1, y1, x2, y2 in lines.reshape(-1, 4):
             angle = abs(np.degrees(np.arctan2(int(y2) - int(y1), int(x2) - int(x1))))
-            if angle < 4 or angle > 176 or (86 < angle < 94):
+            if angle < 3 or angle > 177 or (87 < angle < 93):
                 hv_lines += 1
 
-    if warm_indoor_ratio > 0.42:
+    if hv_lines >= 10:
+        return False, "Detected UI borders, text boxes, or indoor architectural lines instead of an open outdoor roadway."
+
+    if warm_indoor_ratio > 0.40:
         return False, "Detected indoor flooring, skin tones, or warm non-road surfaces instead of asphalt or concrete."
 
-    if lap_var < 55.0:
+    if lap_var < 65.0:
         return False, "Surface texture is too smooth (looks like tiles, a wall, sky, or a digital screen rather than a road)."
 
     if low_sat_ratio < 0.42:
         return False, "Color profile does not match outdoor road pavement (high non-asphalt color saturation detected)."
-
-    if hv_lines >= 14 and lap_var < 220.0:
-        return False, "Detected architectural indoor grid/furniture lines rather than an open roadway."
 
     return True, "Valid road surface confirmed."
 
@@ -426,22 +459,27 @@ if image_source is not None:
 
     if not is_road:
         progress_bar.empty()
+        st.toast("⚠️ Wrong Image Uploaded! Please upload a valid road photo.", icon="🚫")
+
         st.markdown(f"""
-        <div class="reject-box">
-            <h3 style="margin: 0 0 0.45rem 0; color: #fda4af;">🚫 Non-Road Image Rejected</h3>
-            <p style="margin: 0 0 0.6rem 0; color: #f8fafc; font-size: 1rem;">
-                <b>Reason:</b> {validation_msg}
+        <div class="reject-popup">
+            <div class="reject-badge">🚫 Invalid Image Detected</div>
+            <h3 style="margin: 0 0 0.5rem 0; color: #ffffff; font-size: 1.45rem;">
+                Please Upload a Correct Road Surface Image
+            </h3>
+            <p style="margin: 0 0 0.75rem 0; color: #fecdd3; font-size: 1rem;">
+                <b>Why it was blocked:</b> {validation_msg}
             </p>
-            <p style="margin: 0; color: #cbd5e1; font-size: 0.9rem;">
-                RoadWatchX AI only analyzes genuine outdoor roads, streets, or highways to prevent false detections. 
-                Please upload a clear road surface photo to generate an inspection report.
+            <p style="margin: 0; color: #cbd5e1; font-size: 0.92rem; line-height: 1.5;">
+                RoadWatchX AI is strictly calibrated for <b>outdoor asphalt, concrete, and highway surfaces</b>. 
+                Screenshots, indoor floors, documents, and non-road photos will not generate an inspection report.
             </p>
         </div>
         """, unsafe_allow_html=True)
 
         col_prev, _ = st.columns([1, 1])
         with col_prev:
-            st.image(pil_rgb, caption="Uploaded Image (Not a Valid Road Scene)", use_container_width=True)
+            st.image(pil_rgb, caption="Rejected Upload (Not a Road Surface)", use_container_width=True)
     else:
         progress_bar.progress(45, text="🧠 Running YOLO26 road pothole inspection...")
         t0 = time.time()
@@ -530,7 +568,7 @@ if image_source is not None:
                 mime="image/png"
             )
         else:
-            st.success("🎉 Smooth road ahead! No potholes were detected on this road surface.")
+            st.success("🎉 Smooth road ahead! No potholes were detected on this verified road surface.")
 
         gps = extract_gps_coordinates(image_source)
         if gps:
