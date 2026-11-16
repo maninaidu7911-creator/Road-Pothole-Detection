@@ -9,7 +9,6 @@ from PIL import Image
 from ultralytics import YOLO
 from utils import analyze_detections, extract_gps_coordinates
 
-# --- PAGE CONFIG ---
 st.set_page_config(
     page_title="RoadWatchX AI | Smart Road Inspection",
     page_icon="🛣️",
@@ -17,7 +16,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CUSTOM ANIMATIONS & POLISHED DARK GLASS UI ---
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
@@ -63,7 +61,6 @@ html, body, [class*="css"] {
     100% { transform: translateX(-100%); }
 }
 
-/* Top Status Ticker */
 .ticker-wrap {
     width: 100%;
     overflow: hidden;
@@ -74,6 +71,7 @@ html, body, [class*="css"] {
     margin-bottom: 1.3rem;
     backdrop-filter: blur(10px);
 }
+
 .ticker-text {
     display: inline-block;
     white-space: nowrap;
@@ -83,7 +81,6 @@ html, body, [class*="css"] {
     animation: tickerScroll 26s linear infinite;
 }
 
-/* Hero Banner */
 .hero-card {
     background: linear-gradient(135deg, rgba(30, 41, 59, 0.68), rgba(15, 23, 42, 0.88));
     border: 1px solid rgba(148, 163, 184, 0.2);
@@ -136,7 +133,6 @@ html, body, [class*="css"] {
     animation: floatRoad 3s ease-in-out infinite;
 }
 
-/* 3-Step How It Works Grid */
 .feature-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -172,7 +168,6 @@ html, body, [class*="css"] {
     line-height: 1.45;
 }
 
-/* Metric Cards (Fixed Responsive Wrapping) */
 .metric-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -218,7 +213,6 @@ html, body, [class*="css"] {
     margin-top: 0.3rem;
 }
 
-/* Animated Radar Scanner Placeholder */
 .scanner-box {
     position: relative;
     background: linear-gradient(180deg, rgba(15,23,42,0.82), rgba(30,41,59,0.52));
@@ -254,6 +248,7 @@ html, body, [class*="css"] {
     color: #64748b;
     font-size: 0.88rem;
 }
+
 .custom-footer span {
     color: #38bdf8;
     font-weight: 600;
@@ -267,7 +262,6 @@ html, body, [class*="css"] {
 </style>
 """, unsafe_allow_html=True)
 
-# --- LIVE TELEMETRY TICKER ---
 st.markdown("""
 <div class="ticker-wrap">
     <div class="ticker-text">
@@ -276,7 +270,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- HERO HEADER ---
 st.markdown("""
 <div class="hero-card">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
@@ -293,7 +286,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- 3 SIMPLE STEPS FOR VISITORS ---
 st.markdown("""
 <div class="feature-grid">
     <div class="f-card">
@@ -312,7 +304,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# --- LOAD MODEL ---
 @st.cache_resource
 def load_model(model_path: str):
     return YOLO(model_path)
@@ -325,7 +316,6 @@ if not os.path.exists(MODEL_PATH):
 
 model = load_model(MODEL_PATH)
 
-# --- SIDEBAR CONTROLS ---
 with st.sidebar:
     st.markdown("### 🎛️ Inspection Settings")
     conf_threshold = st.slider(
@@ -336,9 +326,7 @@ with st.sidebar:
         step=0.05,
         help="Lower values catch smaller surface cracks; higher values show only major potholes."
     )
-
     celebrate_mode = st.toggle("✨ Visual Celebrations", value=True)
-
     st.divider()
     st.markdown("### 🖼️ Sample Road Photos")
     sample_dir = "sample_images"
@@ -348,7 +336,6 @@ with st.sidebar:
     )
     selected_sample = st.selectbox("Try a demo road image:", ["None"] + sample_files)
 
-# --- UPLOAD SECTION ---
 uploaded_file = st.file_uploader(
     "📸 Upload a road photo to inspect (.jpg, .jpeg, .png)",
     type=["jpg", "jpeg", "png"]
@@ -360,7 +347,6 @@ if uploaded_file is not None:
 elif selected_sample != "None":
     image_source = Image.open(os.path.join(sample_dir, selected_sample))
 
-# --- DETECTION & RESULTS ---
 if image_source is not None:
     pil_rgb = image_source.convert("RGB")
     img_np = np.array(pil_rgb)
@@ -396,20 +382,69 @@ if image_source is not None:
     else:
         badge_color = "#10b981"
 
-    # Clean, Responsive 4-Card Summary Grid
-    st.markdown(f"""
-    <div class="metric-grid">
-        <div class="metric-glass">
-            <div class="metric-label">Potholes Found</div>
-            <div class="metric-val" style="color:#38bdf8;">{report['count']}</div>
-            <div class="metric-hint">Total craters detected</div>
-        </div>
-        <div class="metric-glass">
-            <div class="metric-label">Danger Score</div>
-            <div class="metric-val" style="color:{badge_color};">{report['hazard_score']} <span style="font-size:1rem;color:#94a3b8;">/ 10</span></div>
-            <div class="metric-hint">Based on count & size</div>
-        </div>
-        <div class="metric-glass">
-            <div class="metric-label">Repair Urgency</div>
-            <div class="metric-val" style="font-size:1.35rem;padding-top:0.35rem;color:{badge_color};">{report['overall_status']}</div>
-            <div class="metric-hint">Maintenance priority</div>
+    cards_html = (
+        '<div class="metric-grid">'
+        f'<div class="metric-glass"><div class="metric-label">Potholes Found</div>'
+        f'<div class="metric-val" style="color:#38bdf8;">{report["count"]}</div>'
+        f'<div class="metric-hint">Total craters detected</div></div>'
+        f'<div class="metric-glass"><div class="metric-label">Danger Score</div>'
+        f'<div class="metric-val" style="color:{badge_color};">{report["hazard_score"]} <span style="font-size:1rem;color:#94a3b8;">/ 10</span></div>'
+        f'<div class="metric-hint">Based on count &amp; size</div></div>'
+        f'<div class="metric-glass"><div class="metric-label">Repair Urgency</div>'
+        f'<div class="metric-val" style="font-size:1.35rem;padding-top:0.35rem;color:{badge_color};">{report["overall_status"]}</div>'
+        f'<div class="metric-hint">Maintenance priority</div></div>'
+        f'<div class="metric-glass"><div class="metric-label">Scan Time</div>'
+        f'<div class="metric-val" style="color:#a855f7;">{elapsed_sec} <span style="font-size:1rem;color:#94a3b8;">sec</span></div>'
+        f'<div class="metric-hint">AI processing speed</div></div>'
+        '</div>'
+    )
+    st.markdown(cards_html, unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("#### 📷 Before: Original Road Photo")
+        st.image(pil_rgb, use_container_width=True)
+
+    with col2:
+        st.markdown("#### 🎯 After: AI Pothole Detection")
+        st.image(report["annotated_image"], use_container_width=True)
+
+    if report["count"] > 0:
+        st.markdown("### 📋 Individual Pothole Breakdown")
+        df = pd.DataFrame(report["detections"])
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
+        result_pil = Image.fromarray(report["annotated_image"])
+        buf = BytesIO()
+        result_pil.save(buf, format="PNG")
+        st.download_button(
+            label="⬇️ Download Annotated Inspection Report",
+            data=buf.getvalue(),
+            file_name="roadwatchx_inspection.png",
+            mime="image/png"
+        )
+    else:
+        st.success("🎉 Smooth road ahead! No potholes were detected in this image.")
+
+    gps = extract_gps_coordinates(image_source)
+    if gps:
+        st.markdown("### 📍 Exact GPS Road Location")
+        st.map(pd.DataFrame([gps]))
+
+else:
+    st.markdown("""
+    <div class="scanner-box">
+        <div class="scanner-line"></div>
+        <div style="font-size: 2.5rem; margin-bottom: 0.4rem;">📡</div>
+        <h3 style="margin: 0 0 0.4rem 0; color: #f1f5f9;">Ready to Inspect Any Road</h3>
+        <p style="margin: 0; color: #94a3b8; font-size: 0.95rem;">
+            Upload a road image above — or open the top-left arrow <b>( &gt; )</b> to test a built-in sample photo!
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("""
+<div class="custom-footer">
+    Built by <span>Manikanta Dandabattula</span> &nbsp;|&nbsp; Computer Engineering & AI &nbsp;|&nbsp; Powered by YOLO26 & Computer Vision
+</div>
+""", unsafe_allow_html=True)
