@@ -11,18 +11,17 @@ from utils import analyze_detections, extract_gps_coordinates
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="RoadWatchX | Smart Vision Road Inspection",
+    page_title="RoadWatchX AI | Smart Road Inspection",
     page_icon="🛣️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# --- CUSTOM ANIMATIONS & MODERN DARK GLASS UI ---
+# --- CUSTOM ANIMATIONS & POLISHED DARK GLASS UI ---
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
 
-/* Global Background & Typography */
 html, body, [class*="css"] {
     font-family: 'Outfit', sans-serif;
 }
@@ -32,9 +31,8 @@ html, body, [class*="css"] {
     color: #f8fafc;
 }
 
-/* Smooth Fade-In Animation */
 @keyframes fadeSlideUp {
-    0% { opacity: 0; transform: translateY(22px); }
+    0% { opacity: 0; transform: translateY(18px); }
     100% { opacity: 1; transform: translateY(0); }
 }
 
@@ -45,8 +43,8 @@ html, body, [class*="css"] {
 }
 
 @keyframes pulseGlow {
-    0%, 100% { box-shadow: 0 0 18px rgba(56, 189, 248, 0.25); }
-    50% { box-shadow: 0 0 34px rgba(168, 85, 247, 0.45); }
+    0%, 100% { box-shadow: 0 0 18px rgba(56, 189, 248, 0.22); }
+    50% { box-shadow: 0 0 32px rgba(168, 85, 247, 0.40); }
 }
 
 @keyframes floatRoad {
@@ -65,36 +63,36 @@ html, body, [class*="css"] {
     100% { transform: translateX(-100%); }
 }
 
-/* Live Top Status Ticker */
+/* Top Status Ticker */
 .ticker-wrap {
     width: 100%;
     overflow: hidden;
-    background: rgba(15, 23, 42, 0.75);
-    border: 1px solid rgba(56, 189, 248, 0.25);
+    background: rgba(15, 23, 42, 0.78);
+    border: 1px solid rgba(56, 189, 248, 0.28);
     border-radius: 999px;
     padding: 8px 0;
-    margin-bottom: 1.4rem;
+    margin-bottom: 1.3rem;
     backdrop-filter: blur(10px);
 }
 .ticker-text {
     display: inline-block;
     white-space: nowrap;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85rem;
+    font-size: 0.84rem;
     color: #38bdf8;
-    animation: tickerScroll 24s linear infinite;
+    animation: tickerScroll 26s linear infinite;
 }
 
 /* Hero Banner */
 .hero-card {
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.65), rgba(15, 23, 42, 0.85));
-    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.68), rgba(15, 23, 42, 0.88));
+    border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 22px;
-    padding: 2.2rem 2.4rem;
-    margin-bottom: 1.8rem;
+    padding: 2rem 2.3rem;
+    margin-bottom: 1.6rem;
     position: relative;
     overflow: hidden;
-    animation: fadeSlideUp 0.7s ease-out, pulseGlow 5s infinite ease-in-out;
+    animation: fadeSlideUp 0.6s ease-out, pulseGlow 5s infinite ease-in-out;
     backdrop-filter: blur(14px);
 }
 
@@ -103,20 +101,20 @@ html, body, [class*="css"] {
     background: linear-gradient(90deg, rgba(56,189,248,0.18), rgba(168,85,247,0.18));
     border: 1px solid rgba(56, 189, 248, 0.4);
     color: #7dd3fc;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 700;
-    letter-spacing: 1.2px;
+    letter-spacing: 1.1px;
     text-transform: uppercase;
     padding: 5px 14px;
     border-radius: 999px;
-    margin-bottom: 0.9rem;
+    margin-bottom: 0.8rem;
 }
 
 .hero-title {
-    font-size: 2.8rem;
+    font-size: 2.7rem;
     font-weight: 800;
     line-height: 1.15;
-    margin: 0 0 0.6rem 0;
+    margin: 0 0 0.5rem 0;
     background: linear-gradient(90deg, #38bdf8, #818cf8, #f472b6, #38bdf8);
     background-size: 250% 250%;
     -webkit-background-clip: text;
@@ -126,46 +124,45 @@ html, body, [class*="css"] {
 
 .hero-sub {
     color: #cbd5e1;
-    font-size: 1.08rem;
-    max-width: 760px;
+    font-size: 1.05rem;
+    max-width: 780px;
     margin: 0;
     line-height: 1.6;
 }
 
 .floating-icon {
-    font-size: 3.6rem;
+    font-size: 3.4rem;
     display: inline-block;
     animation: floatRoad 3s ease-in-out infinite;
 }
 
-/* Interactive Feature Cards */
+/* 3-Step How It Works Grid */
 .feature-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
-    margin-bottom: 1.8rem;
-    animation: fadeSlideUp 0.9s ease-out;
+    margin-bottom: 1.6rem;
+    animation: fadeSlideUp 0.8s ease-out;
 }
 
 .f-card {
-    background: rgba(15, 23, 42, 0.65);
-    border: 1px solid rgba(148, 163, 184, 0.15);
+    background: rgba(15, 23, 42, 0.68);
+    border: 1px solid rgba(148, 163, 184, 0.16);
     border-radius: 16px;
-    padding: 1.2rem 1.4rem;
-    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    padding: 1.15rem 1.35rem;
+    transition: all 0.28s ease;
 }
 
 .f-card:hover {
-    transform: translateY(-6px) scale(1.01);
+    transform: translateY(-5px);
     border-color: #38bdf8;
-    box-shadow: 0 12px 28px rgba(56, 189, 248, 0.18);
-    background: rgba(30, 41, 59, 0.78);
+    box-shadow: 0 10px 25px rgba(56, 189, 248, 0.16);
 }
 
 .f-card h4 {
-    margin: 0 0 0.35rem 0;
+    margin: 0 0 0.3rem 0;
     color: #f1f5f9;
-    font-size: 1.05rem;
+    font-size: 1.02rem;
 }
 
 .f-card p {
@@ -175,17 +172,63 @@ html, body, [class*="css"] {
     line-height: 1.45;
 }
 
+/* Metric Cards (Fixed Responsive Wrapping) */
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin: 1rem 0 1.5rem 0;
+    animation: fadeSlideUp 0.6s ease-out;
+}
+
+.metric-glass {
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.92));
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 18px;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    transition: transform 0.25s ease;
+}
+
+.metric-glass:hover {
+    transform: translateY(-4px);
+    border-color: #818cf8;
+}
+
+.metric-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #94a3b8;
+    margin-bottom: 0.35rem;
+    white-space: nowrap;
+}
+
+.metric-val {
+    font-size: 1.95rem;
+    font-weight: 800;
+    color: #f8fafc;
+    line-height: 1.2;
+}
+
+.metric-hint {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-top: 0.3rem;
+}
+
 /* Animated Radar Scanner Placeholder */
 .scanner-box {
     position: relative;
-    background: linear-gradient(180deg, rgba(15,23,42,0.8), rgba(30,41,59,0.5));
+    background: linear-gradient(180deg, rgba(15,23,42,0.82), rgba(30,41,59,0.52));
     border: 1.5px dashed rgba(56, 189, 248, 0.45);
     border-radius: 18px;
-    padding: 2.4rem 1.5rem;
+    padding: 2.3rem 1.5rem;
     text-align: center;
     overflow: hidden;
     margin-top: 0.8rem;
-    animation: fadeSlideUp 1s ease-out;
+    animation: fadeSlideUp 0.9s ease-out;
 }
 
 .scanner-line {
@@ -198,50 +241,13 @@ html, body, [class*="css"] {
     animation: laserScan 3.2s ease-in-out infinite;
 }
 
-/* Metric Cards */
-.metric-glass {
-    background: linear-gradient(145deg, rgba(30, 41, 59, 0.75), rgba(15, 23, 42, 0.9));
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 18px;
-    padding: 1.3rem 1.5rem;
-    text-align: center;
-    transition: transform 0.25s ease;
-    animation: fadeSlideUp 0.6s ease-out;
-}
-
-.metric-glass:hover {
-    transform: translateY(-4px);
-    border-color: #818cf8;
-}
-
-.metric-label {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #94a3b8;
-    margin-bottom: 0.3rem;
-}
-
-.metric-val {
-    font-size: 2.1rem;
-    font-weight: 800;
-    color: #f8fafc;
-}
-
-/* File Uploader Styling */
 [data-testid="stFileUploader"] {
     background: rgba(15, 23, 42, 0.65);
     border: 1px solid rgba(56, 189, 248, 0.3);
     border-radius: 16px;
     padding: 1rem;
-    transition: border-color 0.3s ease;
 }
 
-[data-testid="stFileUploader"]:hover {
-    border-color: #a855f7;
-}
-
-/* Custom Footer */
 .custom-footer {
     text-align: center;
     padding: 2rem 0 1rem 0;
@@ -253,9 +259,10 @@ html, body, [class*="css"] {
     font-weight: 600;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
     .feature-grid { grid-template-columns: 1fr; }
-    .hero-title { font-size: 2rem; }
+    .metric-grid { grid-template-columns: repeat(2, 1fr); }
+    .hero-title { font-size: 2.1rem; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -264,7 +271,7 @@ html, body, [class*="css"] {
 st.markdown("""
 <div class="ticker-wrap">
     <div class="ticker-text">
-        ⚡ YOLO26 NEURAL ENGINE ONLINE &nbsp;•&nbsp; 🛣️ REAL-TIME POTHOLE & SURFACE ANOMALY DETECTION &nbsp;•&nbsp; 🎯 AUTOMATED SEVERITY & HAZARD SCORING (0–10) &nbsp;•&nbsp; 📍 EXIF GPS GEOTAG MAPPING READY &nbsp;•&nbsp; 🚀 BUILT FOR SAFER SMART CITIES
+        ⚡ REAL-TIME AI ROAD INSPECTION &nbsp;•&nbsp; 🛣️ AUTOMATIC POTHOLE DETECTION & SEVERITY GRADING &nbsp;•&nbsp; 🚨 INSTANT ROAD SAFETY SCORING (0–10) &nbsp;•&nbsp; 📍 GPS LOCATION MAPPING &nbsp;•&nbsp; 🚀 BUILT FOR SAFER COMMUTES & SMART CITIES
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -274,11 +281,11 @@ st.markdown("""
 <div class="hero-card">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
         <div>
-            <div class="hero-badge">✨ Next-Gen Smart Infrastructure Vision</div>
+            <div class="hero-badge">✨ AI-Powered Road Safety & Infrastructure Tool</div>
             <h1 class="hero-title">RoadWatchX AI</h1>
             <p class="hero-sub">
-                Making every ride smoother and safer. Upload any road snapshot to instantly detect potholes, 
-                grade surface damage severity, and generate municipal repair priority insights in milliseconds.
+                Turn any road photo into an instant safety report. RoadWatchX AI spots dangerous potholes, 
+                rates road damage severity, and helps maintenance teams prioritize urgent repairs in seconds.
             </p>
         </div>
         <div class="floating-icon">🛣️</div>
@@ -286,20 +293,20 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- FEATURE HIGHLIGHTS ---
+# --- 3 SIMPLE STEPS FOR VISITORS ---
 st.markdown("""
 <div class="feature-grid">
     <div class="f-card">
-        <h4>⚡ Instant YOLO26 Vision</h4>
-        <p>Pinpoints multi-scale road craters and surface cracks with high-precision bounding boxes.</p>
+        <h4>1️⃣ Upload Any Road Photo</h4>
+        <p>Drop a street or highway photo below—or pick a ready-made sample road image to test immediately.</p>
     </div>
     <div class="f-card">
-        <h4>🚦 Smart Severity Grading</h4>
-        <p>Automatically classifies every pothole into Low, Moderate, or Severe hazard tiers.</p>
+        <h4>2️⃣ AI Spots & Rates Damage</h4>
+        <p>Our custom-trained YOLO26 vision model highlights every pothole and labels it Low, Moderate, or Severe.</p>
     </div>
     <div class="f-card">
-        <h4>📍 GPS & Audit Reports</h4>
-        <p>Extracts embedded photo coordinates and exports ready-to-share inspection visuals.</p>
+        <h4>3️⃣ Get Actionable Repair Report</h4>
+        <p>View the 0–10 road danger score, check GPS map coordinates, and download the annotated inspection image.</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -320,33 +327,30 @@ model = load_model(MODEL_PATH)
 
 # --- SIDEBAR CONTROLS ---
 with st.sidebar:
-    st.markdown("### 🎛️ Vision Control Center")
+    st.markdown("### 🎛️ Inspection Settings")
     conf_threshold = st.slider(
-        "AI Sensitivity (Confidence)",
+        "Detection Sensitivity",
         min_value=0.10,
         max_value=0.90,
         value=0.25,
         step=0.05,
-        help="Slide lower to catch subtle cracks; slide higher for ultra-strict detections."
+        help="Lower values catch smaller surface cracks; higher values show only major potholes."
     )
 
-    celebrate_mode = st.toggle("✨ Celebration Effects", value=True)
+    celebrate_mode = st.toggle("✨ Visual Celebrations", value=True)
 
     st.divider()
-    st.markdown("### 🖼️ Quick Demo Gallery")
+    st.markdown("### 🖼️ Sample Road Photos")
     sample_dir = "sample_images"
     sample_files = (
         [f for f in os.listdir(sample_dir) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
         if os.path.exists(sample_dir) else []
     )
-    selected_sample = st.selectbox("Test with a sample road:", ["None"] + sample_files)
-
-    st.divider()
-    st.caption("💡 **Pro Tip:** Smartphone photos with Location enabled automatically unlock the interactive GPS map!")
+    selected_sample = st.selectbox("Try a demo road image:", ["None"] + sample_files)
 
 # --- UPLOAD SECTION ---
 uploaded_file = st.file_uploader(
-    "📸 Drop a road photo here to launch AI inspection (.jpg, .jpeg, .png)",
+    "📸 Upload a road photo to inspect (.jpg, .jpeg, .png)",
     type=["jpg", "jpeg", "png"]
 )
 
@@ -362,27 +366,26 @@ if image_source is not None:
     img_np = np.array(pil_rgb)
     img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-    progress_bar = st.progress(0, text="🔍 Initializing YOLO26 optical scan...")
-    for pct in range(0, 85, 20):
-        time.sleep(0.04)
-        progress_bar.progress(pct, text="🧠 Scanning asphalt texture & depth contours...")
+    progress_bar = st.progress(0, text="🔍 Scanning road surface...")
+    for pct in range(0, 85, 25):
+        time.sleep(0.03)
+        progress_bar.progress(pct, text="🧠 Detecting potholes and measuring damage area...")
 
     t0 = time.time()
     results = model.predict(source=img_bgr, conf=conf_threshold, verbose=False)
     report = analyze_detections(img_bgr, results)
-    elapsed_ms = round((time.time() - t0) * 1000)
+    elapsed_sec = round(time.time() - t0, 2)
 
-    progress_bar.progress(100, text=f"✅ Inspection complete in {elapsed_ms} ms!")
-    time.sleep(0.25)
+    progress_bar.progress(100, text=f"✅ Inspection complete in {elapsed_sec}s!")
+    time.sleep(0.2)
     progress_bar.empty()
 
     if celebrate_mode:
         if report["count"] == 0:
             st.balloons()
         else:
-            st.toast(f"🎯 Scan Complete! Found {report['count']} pothole(s) in {elapsed_ms}ms.", icon="🛣️")
+            st.toast(f"Inspection Complete: {report['count']} pothole(s) found!", icon="🛣️")
 
-    # Determine status color
     score = report["hazard_score"]
     if score >= 7.0:
         badge_color = "#f43f5e"
@@ -393,83 +396,20 @@ if image_source is not None:
     else:
         badge_color = "#10b981"
 
-    # Animated Glass Metric Cards
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown(f"""
+    # Clean, Responsive 4-Card Summary Grid
+    st.markdown(f"""
+    <div class="metric-grid">
         <div class="metric-glass">
-            <div class="metric-label">Potholes Spotted</div>
+            <div class="metric-label">Potholes Found</div>
             <div class="metric-val" style="color:#38bdf8;">{report['count']}</div>
-        </div>""", unsafe_allow_html=True)
-    with c2:
-        st.markdown(f"""
+            <div class="metric-hint">Total craters detected</div>
+        </div>
         <div class="metric-glass">
-            <div class="metric-label">Hazard Index</div>
+            <div class="metric-label">Danger Score</div>
             <div class="metric-val" style="color:{badge_color};">{report['hazard_score']} <span style="font-size:1rem;color:#94a3b8;">/ 10</span></div>
-        </div>""", unsafe_allow_html=True)
-    with c3:
-        st.markdown(f"""
+            <div class="metric-hint">Based on count & size</div>
+        </div>
         <div class="metric-glass">
-            <div class="metric-label">Action Status</div>
-            <div class="metric-val" style="font-size:1.35rem;padding-top:0.45rem;color:{badge_color};">{report['overall_status']}</div>
-        </div>""", unsafe_allow_html=True)
-    with c4:
-        st.markdown(f"""
-        <div class="metric-glass">
-            <div class="metric-label">Inference Speed</div>
-            <div class="metric-val" style="color:#a855f7;">{elapsed_ms} <span style="font-size:1rem;color:#94a3b8;">ms</span></div>
-        </div>""", unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Side-by-Side Comparison
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("#### 📷 Original Road Capture")
-        st.image(pil_rgb, use_container_width=True)
-
-    with col2:
-        st.markdown("#### 🎯 AI Vision Overlay")
-        st.image(report["annotated_image"], use_container_width=True)
-
-    if report["count"] > 0:
-        st.markdown("### 📋 Detailed Pothole Telemetry")
-        df = pd.DataFrame(report["detections"])
-        st.dataframe(df, use_container_width=True, hide_index=True)
-
-        result_pil = Image.fromarray(report["annotated_image"])
-        buf = BytesIO()
-        result_pil.save(buf, format="PNG")
-        st.download_button(
-            label="⬇️ Download High-Res Inspection Report Image",
-            data=buf.getvalue(),
-            file_name="roadwatchx_inspection.png",
-            mime="image/png"
-        )
-    else:
-        st.success("🎉 Smooth road ahead! Zero potholes detected above your confidence threshold.")
-
-    gps = extract_gps_coordinates(image_source)
-    if gps:
-        st.markdown("### 📍 Geotagged Road Location")
-        st.map(pd.DataFrame([gps]))
-
-else:
-    # Animated Radar Empty State
-    st.markdown("""
-    <div class="scanner-box">
-        <div class="scanner-line"></div>
-        <div style="font-size: 2.6rem; margin-bottom: 0.5rem;">📡</div>
-        <h3 style="margin: 0 0 0.4rem 0; color: #f1f5f9;">AI Optical Scanner Ready</h3>
-        <p style="margin: 0; color: #94a3b8; font-size: 0.95rem;">
-            Upload any street or highway photo above — or pick a sample image from the sidebar — to watch RoadWatchX analyze the surface live!
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# --- FOOTER ---
-st.markdown("""
-<div class="custom-footer">
-    Engineered with ❤️ by <span>Manikanta Dandabattula</span> &nbsp;|&nbsp; Powered by YOLO26 & Computer Vision
-</div>
-""", unsafe_allow_html=True)
+            <div class="metric-label">Repair Urgency</div>
+            <div class="metric-val" style="font-size:1.35rem;padding-top:0.35rem;color:{badge_color};">{report['overall_status']}</div>
+            <div class="metric-hint">Maintenance priority</div>
