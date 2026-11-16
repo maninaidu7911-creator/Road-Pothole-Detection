@@ -357,7 +357,6 @@ def validate_road_surface(image_bgr: np.ndarray) -> tuple[bool, str]:
     gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
 
     # 1. Detect Screenshots / Documents / UI Cards (large flat uniform pixel blocks)
-    # Real outdoor asphalt has natural granular variation; UI screenshots have huge blocks of exact identical pixels.
     gx = np.abs(np.diff(gray.astype(np.int16), axis=1))
     gy = np.abs(np.diff(gray.astype(np.int16), axis=0))
     exact_flat_ratio = float((np.mean(gx == 0) + np.mean(gy == 0)) / 2.0)
@@ -572,8 +571,19 @@ if image_source is not None:
 
         gps = extract_gps_coordinates(image_source)
         if gps:
-            st.markdown("### 📍 Exact GPS Road Location")
-            st.map(pd.DataFrame([gps]))
+            if isinstance(gps, dict):
+                lat = gps.get("lat") or gps.get("latitude") or gps.get("Latitude")
+                lon = gps.get("lon") or gps.get("lng") or gps.get("longitude") or gps.get("Longitude")
+            elif isinstance(gps, (list, tuple)) and len(gps) >= 2:
+                lat, lon = gps[0], gps[1]
+            else:
+                lat, lon = None, None
+
+            if lat is not None and lon is not None:
+                st.markdown("### 📍 Exact GPS Road Location")
+                map_df = pd.DataFrame({"lat": [float(lat)], "lon": [float(lon)]})
+                st.map(map_df, zoom=15)
+                st.caption(f"🌐 Coordinates: `{float(lat):.6f}, {float(lon):.6f}`")
 
 else:
     st.markdown("""
